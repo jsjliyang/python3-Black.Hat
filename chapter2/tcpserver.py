@@ -1,8 +1,8 @@
 import socket
 import threading
 
-bind_ip = '172.16.69.156' #本机IP
-bind_port = 4396
+bind_ip = '192.168.11.131' #本机IP
+bind_port = 7776
 
 server = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 
@@ -14,7 +14,7 @@ print('[*] Listening on %s:%d' % (bind_ip,bind_port))
 
 
 def handle_client(client_socket):
-	client_socket.send("Connected!".encode())
+	client_socket.send("李炀".encode(encoding='utf-8'))
 
 	request = client_socket.recv(1024)
 	
