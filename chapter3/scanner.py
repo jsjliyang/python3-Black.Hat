@@ -2,29 +2,34 @@ import socket
 import os
 import struct
 import threading
+import time
 
 from netaddr import IPNetwork,IPAddress
 from ctypes import *
 
-# host to listen on
-host   = "192.168.2.1"
+# 监听的主机
+host   = "172.16.69.62"
 
-# subnet to target
-subnet = "192.168.0.0/24"
+# 扫描的目标子网
+subnet = "172.16.69.0/24"
 
-# magic we'll check ICMP responses for
+# 自定义的字符串，将在ICMP响应中进行核对
 magic_message = "PYTHONRULES!"
 
+# 批量发送UDP数据包
 def udp_sender(subnet,magic_message):
-    sender = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    
+
+    time.sleep(5)
+    sender = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+
     for ip in IPNetwork(subnet):
+
         try:
-            sender.sendto(bytes(magic_message,'UTF-8'),("%s" % ip,65212))
+            sender.sendto(bytes (magic_message,encoding="utf-8"),(str(ip),65212))
         except:
-            pass
-        
-                
+            print("error")
+            #pass
+
 class IP(Structure):
     
     _fields_ = [
@@ -46,14 +51,14 @@ class IP(Structure):
         
     def __init__(self, socket_buffer=None):
 
-        # map protocol constants to their names
+        # 协议字段与协议名称对应
         self.protocol_map = {1:"ICMP", 6:"TCP", 17:"UDP"}
         
-        # human readable IP addresses
-        self.src_address = socket.inet_ntoa(struct.pack("<L",self.src))
-        self.dst_address = socket.inet_ntoa(struct.pack("<L",self.dst))
+        # 可读性更强的IP地址
+        self.src_address = socket.inet_ntoa(struct.pack("<f",self.src))
+        self.dst_address = socket.inet_ntoa(struct.pack("<f",self.dst))
     
-        # human readable protocol
+        # 可读性更强的协议类型
         try:
             self.protocol = self.protocol_map[self.protocol_num]
         except:
@@ -77,7 +82,7 @@ class ICMP(Structure):
     def __init__(self, socket_buffer):
         pass
 
-# create a raw socket and bind it to the public interface
+# 创建一个原始套接字，然后绑定在公开接口上
 if os.name == "nt":
     socket_protocol = socket.IPPROTO_IP 
 else:
@@ -87,56 +92,52 @@ sniffer = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket_protocol)
 
 sniffer.bind((host, 0))
 
-# we want the IP headers included in the capture
+# 设置在不活的数据包中包含IP头
 sniffer.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
 
-# if we're on Windows we need to send some ioctls
-# to setup promiscuous mode
+# 在Windows平台上，需要设置IOCTL以启用混杂模式
 if os.name == "nt":
     sniffer.ioctl(socket.SIO_RCVALL, socket.RCVALL_ON)
 
-
-# start sending packets
+# 开始发送数据包
 t = threading.Thread(target=udp_sender,args=(subnet,magic_message))
-t.start()        
+t.start()
 
 try:
     while True:
         
-        # read in a single packet
+        # 读取数据包
         raw_buffer = sniffer.recvfrom(65565)[0]
         
-        # create an IP header from the first 20 bytes of the buffer
-        ip_header = IP(raw_buffer[0:20])
+        # 将缓冲区的前32个字节按照IP头进行解析
+        ip_header = IP(raw_buffer[0:32])
       
-        #print "Protocol: %s %s -> %s" % (ip_header.protocol, ip_header.src_address, ip_header.dst_address)
+        print ("Protocol: %s %s -> %s" % (ip_header.protocol, ip_header.src_address, ip_header.dst_address))
     
-        # if it's ICMP we want it
+        # 如果为ICMP，进行处理
         if ip_header.protocol == "ICMP":
             
-            # calculate where our ICMP packet starts
+            # 计算ICMP包的起始位置
             offset = ip_header.ihl * 4
             buf = raw_buffer[offset:offset + sizeof(ICMP)]
             
-            # create our ICMP structure
+            # 解析ICMP数据
             icmp_header = ICMP(buf)
             
-            #print "ICMP -> Type: %d Code: %d" % (icmp_header.type, icmp_header.code)
+            #print ("ICMP -> Type: %d Code: %d" % (icmp_header.type, icmp_header.code))
 
-            # now check for the TYPE 3 and CODE 3 which indicates
-            # a host is up but no port available to talk to           
+            # 检查类型和代码值是否为3
             if icmp_header.code == 3 and icmp_header.type == 3:
-                
-                # check to make sure we are receiving the response 
-                # that lands in our subnet
+
+                # 确认响应的主机在目标子网之内
                 if IPAddress(ip_header.src_address) in IPNetwork(subnet):
-                    
-                    # test for our magic message
+
+                    #确认ICMP数据中包含我们发送的自定义的字符串
                     if str(raw_buffer[len(raw_buffer)-len(magic_message):])[2:-1] == magic_message:
                         print("Host Up: %s" % ip_header.src_address)
+            
 # handle CTRL-C
 except KeyboardInterrupt:
-    # if we're on Windows turn off promiscuous mode
-    if os.name == "nt":
+    # 在Windows平台下关闭混杂模式
         sniffer.ioctl(socket.SIO_RCVALL, socket.RCVALL_OFF)
 

@@ -5,8 +5,8 @@ import threading
 
 from ctypes import *
 
-# host to listen on
-host   = "192.168.0.187"
+# 监听的主机
+host   = "172.16.69.62"
 
                 
 class IP(Structure):
@@ -30,14 +30,14 @@ class IP(Structure):
         
     def __init__(self, socket_buffer=None):
 
-        # map protocol constants to their names
+        # 协议字段与协议名称对应
         self.protocol_map = {1:"ICMP", 6:"TCP", 17:"UDP"}
         
-        # human readable IP addresses
-        self.src_address = socket.inet_ntoa(struct.pack("<L",self.src))
-        self.dst_address = socket.inet_ntoa(struct.pack("<L",self.dst))
+        # 可读性更强的IP地址
+        self.src_address = socket.inet_ntoa(struct.pack("<f",self.src))
+        self.dst_address = socket.inet_ntoa(struct.pack("<f",self.dst))
     
-        # human readable protocol
+        # 可读性更强的协议类型
         try:
             self.protocol = self.protocol_map[self.protocol_num]
         except:
@@ -61,7 +61,7 @@ class ICMP(Structure):
     def __init__(self, socket_buffer):
         pass
 
-# create a raw socket and bind it to the public interface
+# 创建一个原始套接字，然后绑定在公开接口上
 if os.name == "nt":
     socket_protocol = socket.IPPROTO_IP 
 else:
@@ -71,11 +71,10 @@ sniffer = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket_protocol)
 
 sniffer.bind((host, 0))
 
-# we want the IP headers included in the capture
+# 设置在不活的数据包中包含IP头
 sniffer.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
 
-# if we're on Windows we need to send some ioctls
-# to setup promiscuous mode
+# 在Windows平台上，需要设置IOCTL以启用混杂模式
 if os.name == "nt":
     sniffer.ioctl(socket.SIO_RCVALL, socket.RCVALL_ON)
 
@@ -84,29 +83,28 @@ if os.name == "nt":
 try:
     while True:
         
-        # read in a single packet
+        # 读取数据包
         raw_buffer = sniffer.recvfrom(65565)[0]
         
-        # create an IP header from the first 20 bytes of the buffer
-        ip_header = IP(raw_buffer[0:20])
+        # 将缓冲区的前32个字节按照IP头进行解析
+        ip_header = IP(raw_buffer[0:32])
       
-        print "Protocol: %s %s -> %s" % (ip_header.protocol, ip_header.src_address, ip_header.dst_address)
+        print ("Protocol: %s %s -> %s" % (ip_header.protocol, ip_header.src_address, ip_header.dst_address))
     
-        # if it's ICMP we want it
+        # 如果为ICMP，进行处理
         if ip_header.protocol == "ICMP":
             
-            # calculate where our ICMP packet starts
+            # 计算ICMP包的起始位置
             offset = ip_header.ihl * 4
             buf = raw_buffer[offset:offset + sizeof(ICMP)]
             
-            # create our ICMP structure
+            # 解析ICMP数据
             icmp_header = ICMP(buf)
             
-            print "ICMP -> Type: %d Code: %d" % (icmp_header.type, icmp_header.code)
+            print ("ICMP -> Type: %d Code: %d" % (icmp_header.type, icmp_header.code))
             
 # handle CTRL-C
 except KeyboardInterrupt:
-    # if we're on Windows turn off promiscuous mode
-    if os.name == "nt":
+    # 在Windows平台下关闭混杂模式
         sniffer.ioctl(socket.SIO_RCVALL, socket.RCVALL_OFF)
 
