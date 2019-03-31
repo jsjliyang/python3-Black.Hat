@@ -1,10 +1,10 @@
 from scapy.all import *
+from scapy.layers.inet import TCP, IP
 
-# 数据包回调函数
+
+# 回调函数
 def packet_callback(packet):
-    
-    print (packet.show())
+    print packet.show()
 
-            
 # 开启嗅探器
 sniff(prn=packet_callback,count=1)
