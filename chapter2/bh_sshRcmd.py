@@ -1,5 +1,4 @@
-#!/usr/bin/python2.7
-
+#coding=utf-8
 import threading
 import subprocess
 import paramiko
@@ -7,7 +6,7 @@ import paramiko
 
 def ssh_command(ip, user, passwd, command):
     client = paramike.SSHClient()
-    ## client can also support using key files
+    # 客户端也可以使用key files
     #client.load_host_keys('/home/user/.ssh/known_hosts')
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     client.connect(ip, username=user, password=passwd)
@@ -24,3 +23,4 @@ def ssh_command(ip, user, passwd, command):
                 ssh_session.send(str(e))
         client.close()
     return
+ssh_command('IP','用户名','密码','ID')
