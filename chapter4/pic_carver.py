@@ -19,21 +19,21 @@ def face_detect(path,file_name):
         		
         rects[:, 2:] += rects[:, :2]
 
-	# highlight the faces in the image        
-	for x1,y1,x2,y2 in rects:
-		cv2.rectangle(img,(x1,y1),(x2,y2),(127,255,0),2)
+	# 对图像中的人脸进行高亮显示处理        
+        for x1,y1,x2,y2 in rects:
+            cv2.rectangle(img,(x1,y1),(x2,y2),(127,255,0),2)
 
-	cv2.imwrite("%s/%s-%s" % (faces_directory,pcap_file,file_name),img)
+        cv2.imwrite("%s/%s-%s" % (faces_directory,pcap_file,file_name),img)
 
         return True
 
 def get_http_headers(http_payload):
 	
 	try:
-		# split the headers off if it is HTTP traffic
+		# 如果为HTTP流量，提取HTTP头
 		headers_raw = http_payload[:http_payload.index("\r\n\r\n")+2]
 	
-		# break out the headers
+		# 对HTTP头进行切分
 		headers = dict(re.findall(r"(?P<name>.*?): (?P<value>.*?)\r\n", headers_raw))
 	except:
 		return None
@@ -51,12 +51,12 @@ def extract_image(headers,http_payload):
 	try:
 		if "image" in headers['Content-Type']:
 			
-			# grab the image type and image body
+			# 获取图像类型和图像数据
 			image_type = headers['Content-Type'].split("/")[1]
 		
 			image = http_payload[http_payload.index("\r\n\r\n")+4:]
 		
-			# if we detect compression decompress the image
+			# 如果数据进行了压缩则解压
 			try:
 				if "Content-Encoding" in headers.keys():
 					if headers['Content-Encoding'] == "gzip":
@@ -88,7 +88,7 @@ def http_assembler(pcap_file):
 			try:
 				if packet[TCP].dport == 80 or packet[TCP].sport == 80:
 	
-					# reassemble the stream into a single buffer
+					# 对数数据包
 					http_payload += str(packet[TCP].payload)
 	
 			except:
@@ -103,7 +103,7 @@ def http_assembler(pcap_file):
 	
 		if image is not None and image_type is not None:				
 		
-			# store the image
+			# 存储图像
 			file_name = "%s-pic_carver_%d.%s" % (pcap_file,carved_images,image_type)
 			fd = open("%s/%s" % (pictures_directory,file_name),"wb")
 			fd.write(image)
@@ -111,7 +111,7 @@ def http_assembler(pcap_file):
 			
 			carved_images += 1
 					
-			# now attempt face detection
+			# 开始人脸检测
 			try:
 				result = face_detect("%s/%s" % (pictures_directory,file_name),file_name)
 				
@@ -126,5 +126,5 @@ def http_assembler(pcap_file):
 
 carved_images, faces_detected = http_assembler(pcap_file)
 
-print "Extracted: %d images" % carved_images
-print "Detected: %d faces" % faces_detected
+print ("Extracted: %d images" % carved_images)
+print ("Detected: %d faces" % faces_detected)

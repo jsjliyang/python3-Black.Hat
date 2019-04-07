@@ -1,8 +1,8 @@
+#coding=utf-8
 from scapy.all import *
-from scapy.layers.inet import TCP, IP
 
 
-# 回调函数
+# 数据包回调函数
 def packet_callback(packet):
     print packet.show()
 

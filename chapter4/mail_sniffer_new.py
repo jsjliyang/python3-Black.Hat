@@ -1,4 +1,4 @@
-import threading
+#coding=utf-8
 from scapy.all import *
 
 # 数据包回调函数
